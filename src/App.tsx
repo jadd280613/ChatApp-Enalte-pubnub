@@ -25,6 +25,8 @@ const SupportDashboard = () => {
   const [activeChatChannel, setActiveChatChannel] = useState('');
   const [activeChatName, setActiveChatName] = useState('');
   const [activeChatTotal, setActiveChatTotal] = useState(0);
+  const [chats, setChats] = useState([]);
+
   const [emojiShow, toggleEmojiShow] = React.useState(false);
   const divRef = useRef(null);
   const divRefActive = useRef(null);
@@ -33,14 +35,16 @@ const SupportDashboard = () => {
   messageRef.current = messages;
   activeChatNameRef.current = activeChatName;
 
-  function getChats(clientName) {
+  function getChats() {
     axios.get(`https://ps.pndsn.com/v2/objects/${subscribeKey}/uuids?include=custom`)
       .then(res => {
-        console.log(res.data);
+        setChats(res.data.data)
       })
       .catch(error => {
         console.log(error);
       });
+
+      setTimeout(() => {  getChats(); }, 500);
   }
  
   const sendMessage = useCallback(
@@ -71,23 +75,42 @@ const SupportDashboard = () => {
       setActiveChatName(clientName);
       setMessages([]);
       let channelHistory = [];
-      pubnub.history(
+      // pubnub.history(
+      //   {
+      //       channel: supportChannel+clientName.replace(/\s/g, ''),
+      //       count: 10
+      //   },
+      //   (status, response) => {
+      //     if (response) {
+      //       if (response.messages && response.messages.length > 0) {
+      //         for (var i = 0; i <= response.messages.length-1; i++) {
+      //           channelHistory.push(response.messages[i].entry);
+      //         } 
+      //         // setTimeout(() => {  updateActiveChats(); }, 500);
+      //       }
+      //     }
+      //     setMessages(channelHistory);
+      //     divRef.current.scrollIntoView({ behavior: 'smooth' });
+      //   }
+      // );
+      pubnub.fetchMessages(
         {
-            channel: supportChannel+clientName.replace(/\s/g, ''),
-            count: 10
+            channels: [supportChannel+clientName.replace(/\s/g, '')],
+            count: 100,
+            includeMeta: true
         },
-        (status, response) => {
-          if (response) {
-            if (response.messages && response.messages.length > 0) {
-              for (var i = 0; i <= response.messages.length-1; i++) {
-                channelHistory.push(response.messages[i].entry);
-              } 
-              setTimeout(() => {  updateActiveChats(); }, 500);
-            }
-          }
-          setMessages(channelHistory);
-          divRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
+        // (status, response) => {
+        //   if (response) {
+        //     if (response.messages && response.messages.length > 0) {
+        //       for (var i = 0; i <= response.messages.length-1; i++) {
+        //         channelHistory.push(response.messages[i].entry);
+        //       } 
+        //       // setTimeout(() => {  updateActiveChats(); }, 500);
+        //     }
+        //   }
+        //   setMessages(channelHistory);
+        //   divRef.current.scrollIntoView({ behavior: 'smooth' });
+        // }
       );
     }
   }
@@ -114,41 +137,42 @@ const SupportDashboard = () => {
     );
   }
 
-  function updateActiveChats(){
-    let newActiveUsers = [];
-    pubnub.hereNow(
-      {
-        channels: [supportChannel+"*"],
-        includeUUIDs: true,
-      },
-      (status, response) => {
-        if (response.channels["supportChannel.*"].occupancy > 0) {
-          for (var i = response.channels["supportChannel.*"].occupancy-1; i >= 0 ; i--) {
-            if (response.channels["supportChannel.*"].occupants[i].uuid !== "agent") {
-              let user = response.channels["supportChannel.*"].occupants[i];
-              lastMessagePreview(user.uuid);
-              newActiveUsers.push({uuid:user.uuid, account: accountFromUUID(user.uuid.replace(/\s/g, '')), initial: user.uuid.charAt(0).toUpperCase()});
-            }
-          }
-        }
-        if (response.channels["supportChannel.*"].occupancy-1 >= 0) {
-          setActiveChatTotal([response.channels["supportChannel.*"].occupancy-1] as any);
-        } else {
-          setActiveChatTotal([0] as any);
-        }
-      }
-    )
-    if (activeUsers !== newActiveUsers) {
-      setActiveUsers(newActiveUsers);
-    }
-    divRefActive.current.scrollIntoView({ behavior: 'smooth' });
-  };
+  // function updateActiveChats(){
+  //   let newActiveUsers = [];
+  //   pubnub.hereNow(
+  //     {
+  //       channels: [supportChannel+"*"],
+  //       includeUUIDs: true,
+  //     },
+  //     (status, response) => {
+  //       if (response.channels["supportChannel.*"].occupancy > 0) {
+  //         for (var i = response.channels["supportChannel.*"].occupancy-1; i >= 0 ; i--) {
+  //           if (response.channels["supportChannel.*"].occupants[i].uuid !== "agent") {
+  //             let user = response.channels["supportChannel.*"].occupants[i];
+  //             lastMessagePreview(user.uuid);
+  //             newActiveUsers.push({uuid:user.uuid, account: accountFromUUID(user.uuid.replace(/\s/g, '')), initial: user.uuid.charAt(0).toUpperCase()});
+  //           }
+  //         }
+  //       }
+  //       if (response.channels["supportChannel.*"].occupancy-1 >= 0) {
+  //         setActiveChatTotal([response.channels["supportChannel.*"].occupancy-1] as any);
+  //       } else {
+  //         setActiveChatTotal([0] as any);
+  //       }
+  //     }
+  //   )
+  //   if (activeUsers !== newActiveUsers) {
+  //     setActiveUsers(newActiveUsers);
+  //   }
+  //   divRefActive.current.scrollIntoView({ behavior: 'smooth' });
+  // };
 
   function startPubNub() {
+    getChats()
     pubnub.addListener({
       status: function(statusEvent) {
         if (statusEvent.category === "PNConnectedCategory") {
-          updateActiveChats();
+          // updateActiveChats();
         }
       },
       message: messageEvent => {
@@ -163,7 +187,7 @@ const SupportDashboard = () => {
       },
       presence: function(presenceEvent) {
         if ((presenceEvent.action === "join") || (presenceEvent.action === "leave")) {
-          updateActiveChats();
+          // updateActiveChats();
         }
       },
     });
@@ -865,25 +889,25 @@ const SupportDashboard = () => {
                   </NewestRow>
                 </Sort>
               </FilterRow>
-              {activeUsers.map((activeUsers, activeUsersIndex) => {
-                if (activeChatChannel.includes(activeUsers.uuid.replace(/\s/g, ''))) {
+              {chats.map((activeUsers, activeUsersIndex) => {
+                if (activeChatChannel.includes(activeUsers.name.replace(/\s/g, ''))) {
                   return (
                     <ActiveChatChannelSelected  key={`activeUsers-${activeUsersIndex}`} onClick={() => {openChat(activeUsers.uuid)}}>
                       <ActiveChatChannel>
                         <ActiveSenderRow>
                           <SenderInitialImage>
                             <SenderImageArea>
-                              <SenderInitials>{activeUsers.initial}</SenderInitials>
+                              {/* <SenderInitials>{activeUsers.initial}</SenderInitials> */}
                             </SenderImageArea>
                           </SenderInitialImage>
                           <SenderNameColumn>
-                            <SenderNameActive>{activeUsers.uuid}</SenderNameActive>
-                            <SenderCustomCompany4>Account: {activeUsers.account}</SenderCustomCompany4>
+                            <SenderNameActive>{activeUsers.name}</SenderNameActive>
+                            {/* <SenderCustomCompany4>Account: {activeUsers.account}</SenderCustomCompany4> */}
                           </SenderNameColumn>
                           <LastActiveMessageDuration>Active</LastActiveMessageDuration>
                         </ActiveSenderRow>
                         <ActiveChatAssignedRow>
-                          <ActiveAssignedText id={`activeUserLast-${activeUsers.uuid}`}>
+                          <ActiveAssignedText id={`activeUserLast-${activeUsers.name}`}>
                           </ActiveAssignedText>
                           <AssignedAgentAvatar>
                             <AssignedAgentAvaterImage
@@ -900,17 +924,17 @@ const SupportDashboard = () => {
                       <ActiveSenderRow>
                         <SenderInitialImage>
                           <SenderImageArea>
-                            <SenderInitials>{activeUsers.initial}</SenderInitials>
+                            {/* <SenderInitials>{activeUsers.initial}</SenderInitials> */}
                           </SenderImageArea>
                         </SenderInitialImage>
                         <SenderNameColumn>
-                          <SenderNameActive>{activeUsers.uuid}</SenderNameActive>
-                          <SenderCustomCompany4>Account: {activeUsers.account}</SenderCustomCompany4>
+                          <SenderNameActive>{activeUsers.name}</SenderNameActive>
+                          {/* <SenderCustomCompany4>Account: {activeUsers.account}</SenderCustomCompany4> */}
                         </SenderNameColumn>
                         <LastActiveMessageDuration>Active</LastActiveMessageDuration>
                       </ActiveSenderRow>
                       <ActiveChatAssignedRow>
-                        <ActiveAssignedText id={`activeUserLast-${activeUsers.uuid}`}>
+                        <ActiveAssignedText id={`activeUserLast-${activeUsers.name}`}>
                         </ActiveAssignedText>
                         <AssignedAgentAvatar>
                           <AssignedAgentAvaterImage
