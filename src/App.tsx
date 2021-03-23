@@ -921,7 +921,7 @@ const SupportDashboard = () => {
                             <SenderInitials>{activeUsers.name.charAt(0).toUpperCase()}</SenderInitials>
                           </SenderImageArea>
                         </SenderInitialImage>
-                        <SenderNameColumn>
+                        <SenderNameColumn> 
                           <SenderNameActive>{activeUsers.name}</SenderNameActive>
                           {/* <SenderCustomCompany4>Account: {activeUsers.account}</SenderCustomCompany4> */}
                         </SenderNameColumn>
