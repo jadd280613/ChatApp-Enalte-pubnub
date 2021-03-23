@@ -12,6 +12,7 @@
     "@types/pubnub": "^4.27.3",
     "@types/react": "^16.9.35",
     "@types/react-dom": "^16.9.8",
+    "axios": "^0.21.1",
     "emoji-mart": "^3.0.0",
     "pubnub": "^4.27.6",
     "pubnub-react": "^2.0.0",
