@@ -6,6 +6,7 @@ import './App.css';
 import 'emoji-mart/css/emoji-mart.css';
 import { Picker } from 'emoji-mart';
 import axios from 'axios';
+import moment from 'moment'
  
 const pubnub = new PubNub({
   publishKey: 'pub-c-8f471d34-3964-439d-8669-bb26d8506cb2',
@@ -24,6 +25,7 @@ const SupportDashboard = () => {
   const [activeUsers, setActiveUsers] = useState([]);
   const [input, setInput] = useState('');
   const [activeChatChannel, setActiveChatChannel] = useState('');
+  const [activeChatChannelComplete, setActiveChatChannelComplete] = useState([]);
   const [activeChatName, setActiveChatName] = useState('');
   const [emailUser, setEmailUser] = useState('');
   const [phoneUser, setPhoneUser] = useState('');
@@ -49,6 +51,9 @@ const SupportDashboard = () => {
 
       setTimeout(() => {  getChats(); }, 500);
   }
+  function handleChangePhone(event) {
+    setPhoneUser(event.target.value)
+  }
   function handleChangeEmail(event) {
     setEmailUser(event.target.value)
   }
@@ -63,7 +68,7 @@ const SupportDashboard = () => {
         await pubnub.publish({
                 message: {sender:"agent",name:'agent',message:input.replace(/<[^>]*>?/gm, '')},
                 channel:activeChatChannel
-              });
+        });
         setInput('');
         setMessages([...messageRef.current, {sender:"agent",name:'agent',message:input.replace(/<[^>]*>?/gm, '')}] as any);
         if (document.getElementById("activeUserLast-"+activeChatName)) {
@@ -77,28 +82,41 @@ const SupportDashboard = () => {
     },
     [pubnub, setInput, input, activeChatChannel, activeChatName]
   );
+  function isEmpty(obj) {
+    return Object.keys(obj).length === 0;
+  }
 
   function openChat(chat) {
     if (activeChatName !== chat.name) {
       setActiveChatChannel(supportChannel+chat.name.replace(/\s/g, ''));
+      setActiveChatChannelComplete(chat)
       setActiveChatName(chat.name);
       setEmailUser(chat.email);
+      if (chat.profileUrl !== null && chat.profileUrl !== "null" ) {
+        setPhoneUser(chat.profileUrl);
+      }else {
+        setPhoneUser('*Telefono no registrado*');
+      }
       setMessages([]);
       let channelHistory = [];
       pubnub.fetchMessages(
         {
             channels: [supportChannel+chat.name.replace(/\s/g, '')],
             count: 100,
-            includeMeta: true
+            includeMeta: true,
+            stringifiedTimeToken: true,
+            includeMessageActions: true
         },
         (status, response) => {
-          if (response) {
+          if (response && !isEmpty(response.channels)) {
             console.log(response);
             var msg = response.channels[supportChannel+chat.name.replace(/\s/g, '')]
             if (msg.length > 0) {
               for (var i = 0; i < msg.length; i++) {
                 channelHistory.push(msg[i].message);
+                channelHistory[i].timetoken = msg[i].timetoken
               } 
+              console.log(channelHistory);
               // setTimeout(() => {  updateActiveChats(); }, 500);
             }
           }
@@ -171,6 +189,7 @@ const SupportDashboard = () => {
       },
       message: messageEvent => {
         if (messageEvent.message.name === activeChatNameRef.current) {
+          messageEvent.message.timetoken = parseInt(messageEvent.timetoken, 10)
           setMessages([...messageRef.current, messageEvent.message] as any);
           divRef.current.scrollIntoView({ behavior: 'smooth' });
         }
@@ -325,7 +344,7 @@ const SupportDashboard = () => {
                     </svg>
                   </PathRow>
                 </PubNubLogo>
-                <MenuTarget>
+                {/* <MenuTarget>
                   <Rectangle8>
                     <IconTarget>
                       <FillStack>
@@ -522,8 +541,8 @@ const SupportDashboard = () => {
                       </MenuGroupStack>
                     </IconGroup>
                   </MenuGroupArea>
-                </MenuGroup>
-                <SelectedMessages>
+                </MenuGroup> */}
+                {/* <SelectedMessages>
                   <SelectedMessagesGroup>
                     <IconMesssages>
                       <PathSelectedStack>
@@ -610,8 +629,8 @@ const SupportDashboard = () => {
                       </PathSelectedStack>
                     </IconMesssages>
                   </SelectedMessagesGroup>
-                </SelectedMessages>
-                <MenuCalendar>
+                </SelectedMessages> */}
+                {/* <MenuCalendar>
                   <Rectangle5>
                     <IconCalendar>
                       <Path16Stack>
@@ -801,7 +820,7 @@ const SupportDashboard = () => {
                   <MyProfile
                     src={require("./assets/images/8fb65c19677a1d8770ff89a500350d6b3aada798.png")}
                   ></MyProfile>
-                </MyProfile1>
+                </MyProfile1> */}
               </Menu>
             </LeftBg>
             <svg
@@ -832,7 +851,7 @@ const SupportDashboard = () => {
                     <AllChats>All Chats</AllChats>
                     <ChatTotalCount>
                       <ActiveChatCount>
-                        <ActiveChatTotal>{activeChatTotal}</ActiveChatTotal>
+                        {/* <ActiveChatTotal>{activeChatTotal}</ActiveChatTotal> */}
                       </ActiveChatCount>
                     </ChatTotalCount>
                   </AllChatsRow>
@@ -891,7 +910,7 @@ const SupportDashboard = () => {
                         <ActiveSenderRow>
                           <SenderInitialImage>
                             <SenderImageArea>
-                              <SenderInitials>{activeUsers.charAt(0).toUpperCase()}</SenderInitials>
+                              <SenderInitials>{activeUsers.name.charAt(0).toUpperCase()}</SenderInitials>
                             </SenderImageArea>
                           </SenderInitialImage>
                           <SenderNameColumn>
@@ -902,6 +921,11 @@ const SupportDashboard = () => {
                         </ActiveSenderRow>
                         <ActiveChatAssignedRow>
                           <ActiveAssignedText id={`activeUserLast-${activeUsers.name}`}>
+                            {
+                              activeUsers.custom.hasOwnProperty("lastMessage")
+                              ? activeUsers.custom.lastMessage.substring(0,40)
+                              : 'na'
+                            }
                           </ActiveAssignedText>
                           <AssignedAgentAvatar>
                             <AssignedAgentAvaterImage
@@ -929,6 +953,11 @@ const SupportDashboard = () => {
                       </ActiveSenderRow>
                       <ActiveChatAssignedRow>
                         <ActiveAssignedText id={`activeUserLast-${activeUsers.name}`}>
+                          {
+                            activeUsers.custom.hasOwnProperty("lastMessage")
+                            ? activeUsers.custom.lastMessage.substring(0,40)
+                            : 'na'
+                          }
                         </ActiveAssignedText>
                         <AssignedAgentAvatar>
                           <AssignedAgentAvaterImage
@@ -953,10 +982,10 @@ const SupportDashboard = () => {
                   <AssignedAgentAvatarRow>
                     <AgentAvatarArea>
                       <AgentAvatarImage
-                        src={require("./assets/images/8fb65c19677a1d8770ff89a500350d6b3aada798.png")}
+                        src={require("./assets/images/support.png")}
                       ></AgentAvatarImage>
                     </AgentAvatarArea>
-                    <AssignedToAgentName>Phil Byrne</AssignedToAgentName>
+                    <AssignedToAgentName>Enalte ventas</AssignedToAgentName>
                     <svg
                       viewBox="-0.5 -0.5 7 4"
                       style={{
@@ -1019,6 +1048,7 @@ const SupportDashboard = () => {
                 return (
                   <MessageAgent key={`message-${messageIndex}`}>
                     <UserName>Enalte ventas</UserName>
+                    <UserName>{moment(parseInt(message.timetoken)/10000).format('llll')}</UserName>
                     <AgentTextAreaStackRow>
                       <AgentTextAreaStack>
                         <AgentMessageText>
@@ -1027,8 +1057,8 @@ const SupportDashboard = () => {
                       </AgentTextAreaStack>
                       <AgentAvatarMessage>
                         <AgenAvatarImage
-                          src={require("./assets/images/8fb65c19677a1d8770ff89a500350d6b3aada798.png")}
-                        ></AgenAvatarImage>
+                          src={require("./assets/images/support.png")}
+                          ></AgenAvatarImage>
                       </AgentAvatarMessage>
                     </AgentTextAreaStackRow>
                   </MessageAgent>
@@ -1037,6 +1067,7 @@ const SupportDashboard = () => {
                 return (
                   <Message key={`message-${messageIndex}`}>
                     <SenderName>{activeChatName}</SenderName>
+                    <SenderName>{moment(parseInt(message.timetoken)/10000).format('llll')}</SenderName>
                     <UserMessageStackRow>
                       <UserIconStack>
                         <SenderImage>
@@ -1419,7 +1450,7 @@ const SupportDashboard = () => {
                   : <SelectedName>Select chat</SelectedName>
                   }
               </PresenceStackRow>
-              {/* <IconCompanyRow>
+              <IconCompanyRow>
                 <IconCompany>
                   <Oval3Stack>
                     <svg
@@ -1464,14 +1495,14 @@ const SupportDashboard = () => {
                     </svg>
                   </Oval3Stack>
                 </IconCompany>
-                {activeChatChannel 
+                {
+                  activeChatChannel 
                   ? <CompanyName>
-                      <input type="text" value={this.state.value} onChange={this.handleChange} />
-                      {accountFromUUID(activeChatName.replace(/\s/g, ''))}
+                      <input type="text" value={phoneUser} onChange={handleChangePhone} />
                     </CompanyName>
                   : <CompanyName>NA</CompanyName>
                   }
-              </IconCompanyRow> */}
+              </IconCompanyRow>
               <IconEmailRow>
                 <IconEmail>
                   <OvalCopyStack>
@@ -1522,7 +1553,7 @@ const SupportDashboard = () => {
                   : <Email>NA</Email>
                   }
               </IconEmailRow>
-              <IconLocationRow>
+              {/* <IconLocationRow>
                 <IconLocation>
                   <OvalCopy2Stack>
                     <svg
@@ -1595,7 +1626,15 @@ const SupportDashboard = () => {
                   ? <CompanyLocation>SF, CA</CompanyLocation>
                   : <CompanyLocation>NA</CompanyLocation>
                   }
-              </IconLocationRow>
+              </IconLocationRow> */}
+              {
+                activeChatChannel
+                ?
+                  <ButtonUpdateInfo>
+                    Update information
+                  </ButtonUpdateInfo>
+                : ''
+              }
             </User>
             {/* <OtherUserInfo>
               <PastVisitsRow>
@@ -3126,6 +3165,18 @@ const IconLocationRow = styled.div`
   display: flex;
   margin-top: 10px;
   margin-right: 63px;
+`;
+const ButtonUpdateInfo = styled.div`
+  background-color: #008CBA;
+  border: none;
+  color: white;
+  padding: 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin-top: 20px;
+  cursor: pointer;
 `;
 
 const OtherUserInfo = styled.div`
