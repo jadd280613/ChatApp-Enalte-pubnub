@@ -18,6 +18,7 @@ const pubnub = new PubNub({
 const publishKey = 'pub-c-8f471d34-3964-439d-8669-bb26d8506cb2'
 const subscribeKey = 'sub-c-9b991aec-552c-11eb-bf6e-f20b4949e6d2'
 const supportChannel = 'supportChannel.';
+var load = 0
 
 const SupportDashboard = () => {
   const pubnub = usePubNub();
@@ -29,6 +30,7 @@ const SupportDashboard = () => {
   const [activeChatName, setActiveChatName] = useState('');
   const [emailUser, setEmailUser] = useState('');
   const [phoneUser, setPhoneUser] = useState('');
+  const [idUser, setIdUser] = useState('');
   const [activeChatTotal, setActiveChatTotal] = useState(0);
   const [chats, setChats] = useState([]);
 
@@ -51,6 +53,24 @@ const SupportDashboard = () => {
 
       setTimeout(() => {  getChats(); }, 500);
   }
+  async function updateInformation() {
+    load = 1
+    var payload = {
+      externalId: activeChatName,
+      profileUrl: phoneUser,
+      email: emailUser
+    }
+    console.log('pay',payload);
+    await axios.patch(`https://ps.pndsn.com/v2/objects/${subscribeKey}/uuids/${idUser}`, payload)
+      .then(res => {
+        alert('Informacion actualizada correctamente')
+      })
+      .catch(error => {
+        alert('Error al actualizar informacion')
+        console.log(error);
+      });
+    load = 0
+  }
   function handleChangePhone(event) {
     setPhoneUser(event.target.value)
   }
@@ -66,11 +86,18 @@ const SupportDashboard = () => {
       console.log(activeChatChannel);
       if (input && activeChatChannel !== "") {
         await pubnub.publish({
-                message: {sender:"agent",name:'agent',message:input.replace(/<[^>]*>?/gm, '')},
-                channel:activeChatChannel
+          message: {sender:"agent",name:'agent',message:input.replace(/<[^>]*>?/gm, '')},
+          channel:activeChatChannel
         });
         setInput('');
-        setMessages([...messageRef.current, {sender:"agent",name:'agent',message:input.replace(/<[^>]*>?/gm, '')}] as any);
+        var date = moment().toDate()
+        // var msg = {
+        //   message: input.replace(/<[^>]*>?/gm, ''),
+        //   name:'agent',
+        //   sender:"agent",
+        //   currentDate: moment(date).format('llll')
+        // }
+        setMessages([...messageRef.current, {sender:"agent",name:'agent', message:input.replace(/<[^>]*>?/gm, ''), currentDate: moment(date).format('llll')}] as any);
         if (document.getElementById("activeUserLast-"+activeChatName)) {
           document.getElementById("activeUserLast-"+activeChatName).innerHTML = input.substring(0,40);
         }
@@ -87,8 +114,15 @@ const SupportDashboard = () => {
   }
 
   function openChat(chat) {
+    setIdUser(chat.id)
+    var name = ''
     if (activeChatName !== chat.name) {
-      setActiveChatChannel(supportChannel+chat.name.replace(/\s/g, ''));
+      if (chat.externalId !== null || chat.externalId !== "") {
+        name = chat.externalId
+      }else {
+        name = chat.name
+      }
+      setActiveChatChannel(supportChannel+name.replace(/\s/g, ''));
       setActiveChatChannelComplete(chat)
       setActiveChatName(chat.name);
       setEmailUser(chat.email);
@@ -1048,7 +1082,14 @@ const SupportDashboard = () => {
                 return (
                   <MessageAgent key={`message-${messageIndex}`}>
                     <UserName>Enalte ventas</UserName>
-                    <UserName>{moment(parseInt(message.timetoken)/10000).format('llll')}</UserName>
+                    <UserName>
+                      {
+                        message.hasOwnProperty("currentDate")
+                        ? message.currentDate
+                        : moment(parseInt(message.timetoken)/10000).format('llll')
+                      }
+                      {/* {moment(parseInt(message.timetoken)/10000).format('llll')} */}
+                    </UserName>
                     <AgentTextAreaStackRow>
                       <AgentTextAreaStack>
                         <AgentMessageText>
@@ -1627,12 +1668,21 @@ const SupportDashboard = () => {
                   : <CompanyLocation>NA</CompanyLocation>
                   }
               </IconLocationRow> */}
+              {/* {
+                activeChatChannel
+                    ? <ButtonUpdateInfo onClick={updateInformation}>
+                        Update information
+                      </ButtonUpdateInfo>
+                      
+                : ''
+              } */}
               {
                 activeChatChannel
-                ?
-                  <ButtonUpdateInfo>
-                    Update information
-                  </ButtonUpdateInfo>
+                ? load === 0
+                    ? <ButtonUpdateInfo onClick={updateInformation}>
+                        Update information
+                      </ButtonUpdateInfo>
+                    : 'Actualizando informacion...'
                 : ''
               }
             </User>
