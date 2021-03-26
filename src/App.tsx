@@ -45,7 +45,13 @@ const SupportDashboard = () => {
   function getChats() {
     axios.get(`https://ps.pndsn.com/v2/objects/${subscribeKey}/uuids?include=custom`)
       .then(res => {
-        setChats(res.data.data)
+        var array = res.data.data
+        array.sort(function (a, b) {
+          if (a.custom.date > b.custom.date) return -1
+          if (a.custom.date < b.custom.date) return 1
+          return 0
+        })
+        setChats(array)
       })
       .catch(error => {
         console.log(error);
@@ -117,7 +123,7 @@ const SupportDashboard = () => {
     setIdUser(chat.id)
     var name = ''
     if (activeChatName !== chat.name) {
-      if (chat.externalId !== null || chat.externalId !== "") {
+      if (chat.externalId !== null && chat.externalId !== "" && chat.externalId !== "null") {
         name = chat.externalId
       }else {
         name = chat.name
@@ -951,7 +957,7 @@ const SupportDashboard = () => {
                             <SenderNameActive>{activeUsers.name}</SenderNameActive>
                             {/* <SenderCustomCompany4>Account: {activeUsers.account}</SenderCustomCompany4> */}
                           </SenderNameColumn>
-                          <LastActiveMessageDuration>Active</LastActiveMessageDuration>
+                          <LastActiveMessageDuration>{activeUsers.custom.date}</LastActiveMessageDuration>
                         </ActiveSenderRow>
                         <ActiveChatAssignedRow>
                           <ActiveAssignedText id={`activeUserLast-${activeUsers.name}`}>
@@ -983,7 +989,7 @@ const SupportDashboard = () => {
                           <SenderNameActive>{activeUsers.name}</SenderNameActive>
                           {/* <SenderCustomCompany4>Account: {activeUsers.account}</SenderCustomCompany4> */}
                         </SenderNameColumn>
-                        <LastActiveMessageDuration>Active</LastActiveMessageDuration>
+                        <LastActiveMessageDuration>{activeUsers.custom.date}</LastActiveMessageDuration>
                       </ActiveSenderRow>
                       <ActiveChatAssignedRow>
                         <ActiveAssignedText id={`activeUserLast-${activeUsers.name}`}>
@@ -1089,7 +1095,7 @@ const SupportDashboard = () => {
                         : moment(parseInt(message.timetoken)/10000).format('llll')
                       }
                       {/* {moment(parseInt(message.timetoken)/10000).format('llll')} */}
-                    </UserName>
+                    </UserName>z
                     <AgentTextAreaStackRow>
                       <AgentTextAreaStack>
                         <AgentMessageText>
@@ -2540,6 +2546,7 @@ const LastActiveMessageDuration = styled.span`
   letter-spacing: -0.2046153846153847px;
   margin-left: auto;
   margin-right: 15px;
+  width:90px;
 `;
 
 const ActiveSenderRow = styled.div`
